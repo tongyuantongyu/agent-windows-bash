@@ -6,9 +6,9 @@ Claude Code's shell tool is named "Bash", and prefers Bash environment provided 
 
 Claude Code automatically discovers `bash.exe` by locating the `git.exe` provided by Git for Windows and infers the location of `bash.exe` from there, but you can override it explicitly with `CLAUDE_CODE_GIT_BASH_PATH` variable.
 
-The `bash.exe` Claude Code found is a wrapper provided by Git for Windows, which always launch the corresponding MSYS2 environment - e.g. if you installed `mingw-w64-ucrt-x86_64-git` then it always launchs a UCRT64 environment.
+The `bash.exe` Claude Code found is a wrapper provided by Git for Windows, which always launch the corresponding MSYS2 environment - e.g. if you installed `mingw-w64-ucrt-x86_64-git` then it always launches a UCRT64 environment.
 
-So out-of-box you can get a functioning Claude Code using your MSYS2 Bash, but you always get UCRT64, even if you launch Claude Code from a CLANG64 environment.
+So out-of-box you can get a functioning Claude Code using your MSYS2 Bash, but you always get UCRT64, even if you launch Claude Code from another environment like CLANG64.
 
 This is not always ideal. UCRT64 provides standard GCC toolchain, while CLANG64 provides LLVM toolchain with Sanitizers (ASAN, UBSAN) support, so based on the situation you may want to switch the environment to use. 
 
@@ -19,6 +19,8 @@ This is not always ideal. UCRT64 provides standard GCC toolchain, while CLANG64 
 First let's define what do we want.
 
 - We need a `bash.exe` wrapper that honors the current environment.
+  - Inside MSYS2 it uses the environment as is.
+  - Outside MSYS2 it initializes MSYS2 environment.
 
 And actually that's all we want. We can point `CLAUDE_CODE_GIT_BASH_PATH` to it.
 
@@ -41,7 +43,7 @@ See `bash-site-wrapper.c`.
 1. Name the compiled binary of `bash-site-wrapper.c` as `bash.exe` and place it under `C:\msys64\cmd\bash-site` (a new dir).
 2. Set `CLAUDE_CODE_GIT_BASH_PATH` to `C:\msys64\cmd\bash-site\bash.exe`.
 
-And launch `claude` from non-default MSYS2 environment like CLANG64. Now commands will run in CLANG64.
+And launch `claude` from non-default MSYS2 environment like CLANG64. Now Claude Code can run commands in CLANG64 environment.
 
 ## Process tree
 

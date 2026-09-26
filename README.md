@@ -12,7 +12,7 @@ This part should be easy. Simply follow the official guide.
 
 After finish installation, you should install `mingw-w64-ucrt-x86_64-git-for-windows-addons`, which basically gives you Git for Windows in the form of some MSYS2 packages.
 
-## Confgure for Agents
+## Configure for Agents
 
 - [Codex](Codex.md)
 - [Claude Code](Claude_Code.md)

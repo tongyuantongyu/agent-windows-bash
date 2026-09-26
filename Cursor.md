@@ -2,7 +2,7 @@
 
 ## Out of box behavior
 
-Cursor is VSCode based and inherits the configurations in `settings.json`. This using the official MSYS2 launcher works fine for the Terminal Tab:
+Cursor is VSCode based and inherits the configurations in `settings.json`. So this config using the official MSYS2 launcher works fine for the Terminal Tab:
 
 ```json
 {
@@ -19,7 +19,7 @@ Cursor is VSCode based and inherits the configurations in `settings.json`. This 
 }
 ```
 
-And you can't switch the shell without restarting Cursor. You can config per-project default shell, and Agent shell will follow that.
+You can config per-project default shell, and Agent shell will follow that. However you can't switch the shell without restarting Cursor. 
 
 ```json
 {
@@ -27,7 +27,7 @@ And you can't switch the shell without restarting Cursor. You can config per-pro
 }
 ```
 
-However, for MSYS2 Shell, the Agent side doesn't like the batch script. Specifically, it expects a shell with path named `bash.exe` or `git-bash.exe` and doesn't care about `args`. Otherwise it fallbacks to the default PowerShell shell.
+Unfortunately for MSYS2 Shell, the Agent side doesn't like the batch script. Specifically, it expects a shell with path named `bash.exe` or `git-bash.exe` and doesn't care about `args`. Otherwise it fallbacks to the default PowerShell shell.
 
 ## Our Design
 

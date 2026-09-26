@@ -9,17 +9,17 @@ The shell executable must live in `PATH`, and a manual full path specification d
 Codex:
 
 1. Silently strips away the explicit path
-2. Detect the type of the shell from the file name
+2. Detect the type of the shell from the executable name
 3. Use the executable found in `PATH` to execute the command
-4. If the shell type is unknown, or the executable cannot be found, fallback to platform default (`Powershell` on Windows)
+4. If the shell type is unknown, or the executable cannot be found, fallback to platform default (`PowerShell` on Windows)
 
 MSYS2 Bash lives in `C:\msys64\usr\bin\bash.exe`, and putting `C:\msys64\usr\bin\` into system `PATH` is a bad idea.
 
 Based on the behavior, you actually can launch Codex inside a MSYS2 shell, and when the Agent want to run `bash` it will get the MSYS2 Bash automatically. The downside is that the `cmd` and `Powershell` shells also get MSYS2 environment and would behave weirdly. However without extra configuration, MSYS2 launcher strips away extra `PATH` from Windows side, so you must launch via the full path `"$USERPROFILE/AppData/Local/Programs/OpenAI/Codex/bin/Codex.exe"`.
 
-The official executable `C:\msys64\ucrt64.exe` is not recognized and pops up a new window; while the official launcher `C:\msys64\msys2_shell.cmd -defterm -here -no-start -ucrt64` simply doesn't fit in the shape Codex considers a "shell".
+The official executable `C:\msys64\ucrt64.exe` is not recognized as a known type of shell; while the official launcher `C:\msys64\msys2_shell.cmd -defterm -here -no-start -ucrt64` doesn't even fit in the shape Codex considers a "shell".
 
-Moreover, if you have WSL installed (you likely have), it will create a `C:\Users\TYTY\AppData\Local\Microsoft\WindowsApps\bash.exe` which is in your `PATH` and redirects the commands to inside your default WSL VM. So even if you tell Agent to use `C:\msys64\usr\bin\bash.exe`, those command will be sent to `C:\Users\TYTY\AppData\Local\Microsoft\WindowsApps\bash.exe` and runs inside WSL. Ridiculous.
+Moreover, if you have WSL installed (you likely have), it will create a `%userprofile%\AppData\Local\Microsoft\WindowsApps\bash.exe` which is in your `PATH` and redirects the commands to inside your default WSL VM. So even if you tell Agent to use `C:\msys64\usr\bin\bash.exe`, those command will be sent to `%userprofile%\AppData\Local\Microsoft\WindowsApps\bash.exe` and runs inside WSL. Ridiculous.
 
 Before continue, it's strongly recommended to remove that WSL `bash.exe`. It brings more confusion than convenience, especially if you have installed MSYS2, and by asking for "bash", you more likely want the MSYS2 Bash instead.
 
@@ -68,7 +68,7 @@ You should have added `C:\msys64\cmd` to `PATH`, which holds executables that ar
 
 And launch `codex`. Now bash commands will "just work" for Codex.
 
-Note: Codex installer adds its installation directory to user `PATH`, so your `C:\msys64\cmd` in system `PATH` will take precedence.
+Note: Codex installer adds its installation directory to user-level `PATH`, so your `C:\msys64\cmd` in system-level `PATH` should take precedence.
 
 ## Process tree
 
