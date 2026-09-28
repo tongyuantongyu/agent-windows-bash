@@ -55,10 +55,10 @@ First, let's define what we want.
 The constraints lead to our design:
 
 1. The wrapper is named with prefix `git-cursor-bash.exe` or `git-cursor-<MSYSTEM>-bash.exe`.
-  - The Git for Windows path is more complicated, so we satisfy the `git*bash.exe` branch.
-  - We must include the desired `MSYSTEM` in the executable name.
+    - The Git for Windows path is more complicated, so we satisfy the `git*bash.exe` branch.
+    - We must include the desired `MSYSTEM` in the executable name.
 2. The wrapper reads its own name to determine the `MSYSTEM` value, or use the default.
-  - By default, it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
+    - By default, it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
 
 ### Implementation
 

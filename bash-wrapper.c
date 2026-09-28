@@ -33,9 +33,10 @@
  *       - Required by Codex and Claude Code.
  *    c. Use the default MSYSTEM: UCRT64 on x86-64 or CLANGARM64 on AArch64.
  *       - Required by all agents.
- * 5. Initialize a native launch with real MSYS2 Bash as a login shell and
- *    preserve the caller's working directory with CHERE_INVOKING=1.
- *    - Required by all agents.
+ * 5. Initialize a native launch with real MSYS2 Bash as a login shell, so the
+ *    MSYS2 environment is fully initialized.
+ *    a. Preserve the caller's working directory with CHERE_INVOKING=1.
+ *       - Required by all agents.
  */
 
 #ifndef STRICT

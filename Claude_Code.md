@@ -29,10 +29,10 @@ And actually that's all we want. We can point `CLAUDE_CODE_GIT_BASH_PATH` to it.
 The constraints lead to our design:
 
 1. The `bash.exe` wrapper should simply forward to the real `C:\msys64\usr\bin\bash.exe` executable if it's already inside MSYS2 environment.
-  - This can be tested via the `MSYSTEM_PREFIX` environment variable.
+    - This can be tested via the `MSYSTEM_PREFIX` environment variable.
 
 2. The `bash.exe` wrapper picks the correct environment variant via the environment variable `MSYSTEM`.
-  - By default, it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
+    - By default, it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
 
 ### Implementation
 

@@ -44,16 +44,16 @@ And also our background rule:
 The constraints lead to our design:
 
 1. create a Codex wrapper that prepends an extra `PATH` and launches the real Codex.
-  - We cannot let the wrapper set up MSYS2 environment directly, or the `cmd` and `Powershell` shells won't be clean.
+    - We cannot let the wrapper set up MSYS2 environment directly, or the `cmd` and `Powershell` shells won't be clean.
 
 2. The Codex wrapper should avoid modifying `PATH` if it's already inside the MSYS2 environment.
-  - This can be tested via the `MSYSTEM_PREFIX` environment variable.
+    - This can be tested via the `MSYSTEM_PREFIX` environment variable.
 
 3. That extra `PATH` only contains a wrapper `bash.exe`
-  - It will set up a proper MSYS2 environment like `msys2_shell.cmd` and forward the command to the real MSYS2 `bash.exe`
+    - It will set up a proper MSYS2 environment like `msys2_shell.cmd` and forward the command to the real MSYS2 `bash.exe`
 
 4. The `bash.exe` wrapper picks the correct environment variant via the environment variable `MSYSTEM`.
-  - By default, it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
+    - By default, it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
 
 ### Implementation
 
