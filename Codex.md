@@ -1,8 +1,8 @@
 # Codex on Windows with MSYS2 Bash
 
-## Out of box behavior
+## Out-of-box behavior
 
-Codex is very flexible to the Agent. The Agent can [dynamically choose the shell it wants to use](https://github.com/openai/codex/blob/main/codex-rs/tools/src/tool_config.rs#L9-L15), however there's only one restriction:
+Codex is very flexible to the Agent. The Agent can [dynamically choose the shell it wants to use](https://github.com/openai/codex/blob/main/codex-rs/tools/src/tool_config.rs#L9-L15); however, there's one important restriction:
 
 The shell executable must live in `PATH`, and a manual full path specification does **NOT** work.
 
@@ -15,7 +15,7 @@ Codex:
 
 MSYS2 Bash lives in `C:\msys64\usr\bin\bash.exe`, and putting `C:\msys64\usr\bin\` into system `PATH` is a bad idea.
 
-Based on the behavior, you actually can launch Codex inside a MSYS2 shell, and when the Agent want to run `bash` it will get the MSYS2 Bash automatically. The downside is that the `cmd` and `Powershell` shells also get MSYS2 environment and would behave weirdly. However without extra configuration, MSYS2 launcher strips away extra `PATH` from Windows side, so you must launch via the full path `"$USERPROFILE/AppData/Local/Programs/OpenAI/Codex/bin/Codex.exe"`.
+Based on the behavior, you actually can launch Codex inside a MSYS2 shell, and when the Agent wants to run `bash` it will get the MSYS2 Bash automatically. The downside is that the `cmd` and `Powershell` shells also get MSYS2 environment and would behave weirdly. However, without extra configuration, MSYS2 launcher strips away extra `PATH` from Windows, so you must launch via the full path `"$USERPROFILE/AppData/Local/Programs/OpenAI/Codex/bin/Codex.exe"`.
 
 The official executable `C:\msys64\ucrt64.exe` is not recognized as a known type of shell; while the official launcher `C:\msys64\msys2_shell.cmd -defterm -here -no-start -ucrt64` doesn't even fit in the shape Codex considers a "shell".
 
@@ -27,11 +27,11 @@ Before continue, it's strongly recommended to remove that WSL `bash.exe`. It bri
 
 ### Constraints
 
-First let's define what do we want.
+First, let's define what we want.
 
 - Expose `bash.exe` in `PATH` for Codex
 
-Besides, it is standard behavior that the environment outside Codex will be inherited by the shell Codex launched; at the same time Codex's ability to dynamically select the shell is sometimes useful so we want to preserve that.
+Besides, it is standard behavior that the environment outside Codex will be inherited by the shell Codex launched; at the same time, Codex's ability to dynamically select the shell is sometimes useful, so we want to preserve that.
 
 - Keep `cmd` and `Powershell` shells clean from MSYS2 environment variables.
 
@@ -43,28 +43,28 @@ And also our background rule:
 
 The constraints lead to our design:
 
-1. create a Codex wrapper that prepends an extra `PATH` and launch the real Codex.
-  - We cannot let the wrapper to set up MSYS2 environment directly, or the `cmd` and `Powershell` shells won't be clean.
+1. create a Codex wrapper that prepends an extra `PATH` and launches the real Codex.
+  - We cannot let the wrapper set up MSYS2 environment directly, or the `cmd` and `Powershell` shells won't be clean.
 
-2. The Codex wrapper should avoid modifying `PATH` if it's already inside MSYS2 environment.
+2. The Codex wrapper should avoid modifying `PATH` if it's already inside the MSYS2 environment.
   - This can be tested via the `MSYSTEM_PREFIX` environment variable.
 
 3. That extra `PATH` only contains a wrapper `bash.exe`
-  - It will setup proper MSYS2 environment like `msys2_shell.cmd` and forward the command to the real MSYS2 `bash.exe`
+  - It will set up a proper MSYS2 environment like `msys2_shell.cmd` and forward the command to the real MSYS2 `bash.exe`
 
 4. The `bash.exe` wrapper picks the correct environment variant via the environment variable `MSYSTEM`.
-  - By default it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
+  - By default, it uses `UCRT64` on `x86-64` or `CLANGARM64` on `aarch64`.
 
 ### Implementation
 
-See `bash-site-wrapper.c` and `codex-wrapper.c`.
+See `bash-wrapper.c` and `codex-wrapper.c`.
 
 ### Installation
 
-You should have added `C:\msys64\cmd` to `PATH`, which holds executables that are "safe" to be made available system wide.
+You should have added `C:\msys64\cmd` to `PATH`, which holds executables that are "safe" to be made available system-wide.
 
 1. Name the compiled binary of `codex-wrapper.c` as `codex.exe` and place it under `C:\msys64\cmd`.
-2. Name the compiled binary of `bash-site-wrapper.c` as `bash.exe` and place it under `C:\msys64\cmd\bash-site` (a new dir).
+2. Name the compiled binary of `bash-wrapper.c` as `bash.exe` and place it under `C:\msys64\cmd\bash-site` (a new dir).
 
 And launch `codex`. Now bash commands will "just work" for Codex.
 

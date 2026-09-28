@@ -11,8 +11,7 @@
  *   %USERPROFILE%\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe
  *
  * Build from an MSYS2 UCRT64 shell:
- *   gcc -O2 -Wall -Wextra -Wpedantic -municode \
- *     -o codex-wrapper.exe codex-wrapper.c
+ *   gcc -O3 -Wall -Wextra -Wpedantic -municode -o codex.exe codex-wrapper.c
  *
  * Diagnostic mode:
  *   codex.exe --codex-wrapper-diagnose

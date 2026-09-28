@@ -1,21 +1,41 @@
 /*
- * bash-site-wrapper.c - expose MSYS2 Bash through a private PATH directory
+ * bash-wrapper.c - expose MSYS2 Bash through a private PATH directory
  * without exposing the rest of MSYS2 to native Windows commands.
  *
- * An already initialized MSYS2 environment is forwarded unchanged. Otherwise
- * the wrapper selects a system defined by etc\msystem.d and starts a login
- * shell so MSYS2 performs its normal initialization. The default is UCRT64 on
- * x86-64 and CLANGARM64 on AArch64.
  *
  * Intended installed location:
  *   C:\msys64\cmd\bash-site\bash.exe
+ *   C:\msys64\cmd\git-cursor-bash.exe
  *
  * Build from an MSYS2 UCRT64 shell:
- *   gcc -O2 -Wall -Wextra -Wpedantic -municode \
- *     -o bash.exe bash-site-wrapper.c
+ *   gcc -O3 -Wall -Wextra -Wpedantic -municode -o bash.exe bash-wrapper.c
  *
  * Diagnostic mode:
  *   bash.exe --bash-site-diagnose
+ */
+
+/* Behavior of the wrapper:
+ *
+ * 1. The wrapper should forward commands to the real MSYS2 Bash, and ensure
+ *    they run in the desired environment.
+ *    - Required by all agents.
+ * 2. Reject an explicitly set MSYSTEM unless it names a system defined in
+ *    /etc/msystem.d, even if another selection rule would take precedence.
+ *    - Required by all agents.
+ * 3. When MSYSTEM_PREFIX indicates an initialized MSYS2 environment, run the
+ *    real Bash without changing MSYSTEM or rerun the login initialization.
+ *    - Required by Codex and Claude Code.
+ * 4. Otherwise, the wrapper should determine the desired MSYSTEM.
+ *    a. If the wrapper is named git-cursor-<MSYSTEM>-bash.exe, use the filename
+ *       defined MSYSTEM.
+ *       - Required by Cursor.
+ *    b. Use the MSYSTEM environment variable.
+ *       - Required by Codex and Claude Code.
+ *    c. Use the default MSYSTEM: UCRT64 on x86-64 or CLANGARM64 on AArch64.
+ *       - Required by all agents.
+ * 5. Initialize a native launch with real MSYS2 Bash as a login shell and
+ *    preserve the caller's working directory with CHERE_INVOKING=1.
+ *    - Required by all agents.
  */
 
 #ifndef STRICT
@@ -44,7 +64,7 @@
 #elif defined(_M_X64) || defined(__x86_64__)
 #define DEFAULT_MSYSTEM L"UCRT64"
 #else
-#error "bash-site-wrapper supports only x86-64 and AArch64"
+#error "bash-wrapper supports only x86-64 and AArch64"
 #endif
 
 static void fail_win32(const wchar_t *operation)
@@ -461,26 +481,106 @@ static int msystem_definition_exists(const wchar_t *root,
     return wcscmp(found.cFileName, name) == 0;
 }
 
-static int select_msystem(const wchar_t *root)
-{
-    wchar_t requested[BUFFER_CHARS];
-    DWORD requested_chars =
-        GetEnvironmentVariableW(L"MSYSTEM", requested, BUFFER_CHARS);
+enum msystem_source {
+    MSYSTEM_INITIALIZED,
+    MSYSTEM_FILENAME,
+    MSYSTEM_ENVIRONMENT,
+    MSYSTEM_DEFAULT
+};
 
-    if (requested_chars > 0 && requested_chars < BUFFER_CHARS &&
-        msystem_definition_exists(root, requested)) {
+static int select_msystem_from_filename(const wchar_t *root)
+{
+    wchar_t self[BUFFER_CHARS];
+    DWORD self_chars = GetModuleFileNameW(NULL, self, BUFFER_CHARS);
+    if (self_chars == 0 || self_chars >= BUFFER_CHARS) {
+        fail_win32(L"GetModuleFileNameW(MSYSTEM selector)");
+    }
+
+    const wchar_t *basename = wcsrchr(self, L'\\');
+    basename = basename == NULL ? self : basename + 1;
+    const wchar_t *prefix = L"git-cursor-";
+    const wchar_t *suffix = L"-bash.exe";
+    size_t prefix_chars = wcslen(prefix);
+    size_t basename_chars = wcslen(basename);
+    size_t suffix_chars = wcslen(suffix);
+
+    if (_wcsicmp(basename, L"git-cursor-bash.exe") == 0) {
+        return 0;
+    }
+    if (basename_chars < prefix_chars + suffix_chars ||
+        _wcsnicmp(basename, prefix, prefix_chars) != 0 ||
+        _wcsicmp(basename + basename_chars - suffix_chars, suffix) != 0) {
+        return 0;
+    }
+    if (basename_chars == prefix_chars + suffix_chars) {
+        fail_message(L"invalid MSYSTEM name in wrapper filename");
+    }
+
+    size_t name_chars = basename_chars - prefix_chars - suffix_chars;
+    wchar_t name[BUFFER_CHARS];
+    wmemcpy(name, basename + prefix_chars, name_chars);
+    name[name_chars] = L'\0';
+    if (!is_safe_msystem_name(name)) {
+        fail_message(L"invalid MSYSTEM name in wrapper filename");
+    }
+
+    wchar_t definition[BUFFER_CHARS];
+    int definition_chars = _snwprintf(
+        definition, BUFFER_CHARS, L"%ls\\etc\\msystem.d\\%ls", root, name);
+    if (definition_chars < 0 || definition_chars >= BUFFER_CHARS) {
+        fail_message(L"MSYSTEM definition path is too long");
+    }
+    WIN32_FIND_DATAW found;
+    HANDLE search = FindFirstFileW(definition, &found);
+    if (search == INVALID_HANDLE_VALUE ||
+        (found.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+        if (search != INVALID_HANDLE_VALUE) {
+            FindClose(search);
+        }
+        fail_message(L"wrapper filename names an unknown MSYSTEM");
+    }
+    FindClose(search);
+
+    /* Windows lookup ignores case; /etc/profile needs the definition's case. */
+    set_environment_canonical(L"MSYSTEM", found.cFileName);
+    return 1;
+}
+
+static int validate_requested_msystem(const wchar_t *root)
+{
+    wchar_t *requested = copy_environment_value(L"MSYSTEM");
+    if (requested == NULL) {
         return 0;
     }
 
-    set_environment_canonical(L"MSYSTEM", DEFAULT_MSYSTEM);
+    int valid = msystem_definition_exists(root, requested);
+    free(requested);
+    if (!valid) {
+        fail_message(L"MSYSTEM names an unknown or invalid system");
+    }
     return 1;
+}
+
+static enum msystem_source select_msystem(const wchar_t *root,
+                                         int has_requested_msystem)
+{
+    if (select_msystem_from_filename(root)) {
+        return MSYSTEM_FILENAME;
+    }
+
+    if (has_requested_msystem) {
+        return MSYSTEM_ENVIRONMENT;
+    }
+
+    set_environment_canonical(L"MSYSTEM", DEFAULT_MSYSTEM);
+    return MSYSTEM_DEFAULT;
 }
 
 static void configure_launch(const wchar_t *root,
                              wchar_t *real_bash,
                              size_t real_bash_chars,
                              int *add_login,
-                             int *defaulted_msystem)
+                             enum msystem_source *msystem_source)
 {
     if (!format_path(real_bash, real_bash_chars,
                      L"%ls\\usr\\bin\\bash.exe", root)) {
@@ -494,13 +594,15 @@ static void configure_launch(const wchar_t *root,
         environment_is_defined(L"SHELL_WRAPPER_NO_LOGIN");
     unset_environment_canonical(L"SHELL_WRAPPER_NO_LOGIN");
 
+    int has_requested_msystem = validate_requested_msystem(root);
+
     if (environment_is_defined(L"MSYSTEM_PREFIX")) {
         *add_login = 0;
-        *defaulted_msystem = 0;
+        *msystem_source = MSYSTEM_INITIALIZED;
         return;
     }
 
-    *defaulted_msystem = select_msystem(root);
+    *msystem_source = select_msystem(root, has_requested_msystem);
     *add_login = !suppress_login;
     if (*add_login) {
         set_environment_canonical(L"CHERE_INVOKING", L"1");
@@ -528,16 +630,25 @@ static void print_environment_value(const wchar_t *name)
 }
 
 static int diagnose(const wchar_t *root, const wchar_t *real_bash,
-                    int add_login, int defaulted_msystem)
+                    int add_login, enum msystem_source msystem_source)
 {
     int all_found = is_file(real_bash);
+    const wchar_t *source = L"initialized";
+    if (msystem_source == MSYSTEM_FILENAME) {
+        source = L"filename";
+    } else if (msystem_source == MSYSTEM_ENVIRONMENT) {
+        source = L"environment";
+    } else if (msystem_source == MSYSTEM_DEFAULT) {
+        source = L"default";
+    }
 
     wprintf(L"MSYS2_ROOT=%ls\n", root);
     wprintf(L"REAL_BASH=%ls [%ls]\n", real_bash,
             is_file(real_bash) ? L"found" : L"missing");
     wprintf(L"DEFAULT_MSYSTEM=%ls\n", DEFAULT_MSYSTEM);
+    wprintf(L"MSYSTEM_SOURCE=%ls\n", source);
     wprintf(L"MSYSTEM_DEFAULTED=%ls\n",
-            defaulted_msystem ? L"yes" : L"no");
+            msystem_source == MSYSTEM_DEFAULT ? L"yes" : L"no");
     wprintf(L"LOGIN_ARGUMENT=%ls\n", add_login ? L"--login" : L"<none>");
     print_environment_value(L"MSYSTEM");
     print_environment_value(L"MSYSTEM_PREFIX");
@@ -749,15 +860,15 @@ int wmain(int argc, wchar_t **argv)
     wchar_t root[BUFFER_CHARS];
     wchar_t real_bash[BUFFER_CHARS];
     int add_login = 0;
-    int defaulted_msystem = 0;
+    enum msystem_source msystem_source = MSYSTEM_INITIALIZED;
 
     remove_wrapper_directory_from_path();
     find_msys2_root(root, BUFFER_CHARS);
     configure_launch(root, real_bash, BUFFER_CHARS, &add_login,
-                     &defaulted_msystem);
+                     &msystem_source);
 
     if (argc == 2 && wcscmp(argv[1], L"--bash-site-diagnose") == 0) {
-        return diagnose(root, real_bash, add_login, defaulted_msystem);
+        return diagnose(root, real_bash, add_login, msystem_source);
     }
 
     return launch_real_bash(real_bash, add_login);
