@@ -70,6 +70,10 @@ And launch `codex`. Now bash commands will "just work" for Codex.
 
 Note: Codex installer adds its installation directory to user-level `PATH`, so your `C:\msys64\cmd` in system-level `PATH` should take precedence.
 
+#### Agent Client Protocol
+
+IDEs using ACP (JetBrains, Zed) may install the Codex Adapter `@agentclientprotocol/codex-acp`, which by default pulls in another copy of Codex via the `@openai/codex` package and use that directly. Luckily, the Adapter supports a `CODEX_PATH` environment variable to override the Codex executable to use, so you can point it to our wrapper `C:\msys64\cmd\codex.exe`, and everything now works.
+
 ## Process tree
 
 ### High-level native-launch flow
