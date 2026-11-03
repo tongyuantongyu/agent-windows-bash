@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+if [[ $# -eq 0 ]]; then
+    patch=$(cat) || exit $?
+    set -- "$patch"
+fi
+
+# Preserve patch text when crossing from MSYS2 to the native Codex executable.
+export MSYS2_ARG_CONV_EXCL='*'
+profile_path=$(cygpath -u "${USERPROFILE:?USERPROFILE is not set}") || exit $?
+exec "$profile_path/AppData/Local/Programs/OpenAI/Codex/bin/codex.exe" --codex-run-as-apply-patch "$@"

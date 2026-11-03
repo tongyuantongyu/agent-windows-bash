@@ -70,6 +70,33 @@ And launch `codex`. Now bash commands will "just work" for Codex.
 
 Note: Codex installer adds its installation directory to user-level `PATH`, so your `C:\msys64\cmd` in system-level `PATH` should take precedence.
 
+#### apply_patch in Bash
+
+Codex supplies an `apply_patch.bat` wrapper for native Windows shells, but that won't work for Bash due to a few reasons:
+
+- Bash want an extensionless file instead
+- Bash doesn't understand the batch syntax
+- The MSYS2 login shell cleans up `PATH`, which removes non-MSYS2 paths.
+
+Install this repository's `apply_patch` script as `/bin/apply_patch` (`/bin` maps to `C:\msys64\usr\bin` in MSYS2):
+
+```bash
+install -m 755 apply_patch /bin/apply_patch
+```
+
+The script directly invokes `%USERPROFILE%\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe` with `--codex-run-as-apply-patch`, forwards arguments, and returns Codex's exit status. If your installation puts Codex executable somewhere else, adjust the path.
+
+After that you should be able to apply patches normally:
+
+```bash
+apply_patch <<'PATCH'
+*** Begin Patch
+*** Add File: example.txt
++Hello from Bash.
+*** End Patch
+PATCH
+```
+
 #### Agent Client Protocol
 
 IDEs using ACP (JetBrains, Zed) may install the Codex Adapter `@agentclientprotocol/codex-acp`, which by default pulls in another copy of Codex via the `@openai/codex` package and use that directly. Luckily, the Adapter supports a `CODEX_PATH` environment variable to override the Codex executable to use, so you can point it to our wrapper `C:\msys64\cmd\codex.exe`, and everything now works.
