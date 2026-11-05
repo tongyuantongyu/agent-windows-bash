@@ -97,6 +97,8 @@ apply_patch <<'PATCH'
 PATCH
 ```
 
+**WARNING**: The Agent should be told (e.g. via global AGENTS.md) to prefer the `apply_patch` tool than the command most of the time, due to Windows's rather limited max command line length, sometimes as low as around 8000 characters.
+
 #### Agent Client Protocol
 
 IDEs using ACP (JetBrains, Zed) may install the Codex Adapter `@agentclientprotocol/codex-acp`, which by default pulls in another copy of Codex via the `@openai/codex` package and use that directly. Luckily, the Adapter supports a `CODEX_PATH` environment variable to override the Codex executable to use, so you can point it to our wrapper `C:\msys64\cmd\codex.exe`, and everything now works.
